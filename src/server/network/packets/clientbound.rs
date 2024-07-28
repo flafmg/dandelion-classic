@@ -62,7 +62,6 @@ impl LevelInitializePacket {
         Self { data: Vec::new() }
     }
 }
-
 #[async_trait]
 impl PacketTrait for LevelInitializePacket {
     fn packet_id(&self) -> u8 {
@@ -84,15 +83,12 @@ impl PacketTrait for LevelInitializePacket {
     }
 }
 
-// level data chunk packet
-
 pub struct LevelDataChunkPacket {
     data: Vec<u8>,
     chunk_length: i16,
     chunk_data: Vec<u8>,
     completed: u8,
 }
-
 impl LevelDataChunkPacket {
     pub fn new(chunk_length: i16, chunk_data: Vec<u8>, completed: u8) -> Self {
         Self {
@@ -103,7 +99,6 @@ impl LevelDataChunkPacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for LevelDataChunkPacket {
     fn packet_id(&self) -> u8 {
@@ -127,15 +122,12 @@ impl PacketTrait for LevelDataChunkPacket {
     }
 }
 
-// level finalize packet
-
 pub struct LevelFinalizePacket {
     data: Vec<u8>,
     x_size: i16,
     y_size: i16,
     z_size: i16,
 }
-
 impl LevelFinalizePacket {
     pub fn new(x_size: i16, y_size: i16, z_size: i16) -> Self {
         Self {
@@ -146,7 +138,6 @@ impl LevelFinalizePacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for LevelFinalizePacket {
     fn packet_id(&self) -> u8 {
@@ -173,13 +164,11 @@ impl PacketTrait for LevelFinalizePacket {
 pub struct PingPacket {
     data: Vec<u8>,
 }
-
 impl PingPacket {
     pub fn new() -> Self {
         Self { data: Vec::new() }
     }
 }
-
 #[async_trait]
 impl PacketTrait for PingPacket {
     fn packet_id(&self) -> u8 {
@@ -209,7 +198,6 @@ pub struct SetBlockPacket {
     z: i16,
     block_type: u8,
 }
-
 impl SetBlockPacket {
     pub fn new(x: i16, y: i16, z: i16, block_type: u8) -> Self {
         Self {
@@ -221,7 +209,6 @@ impl SetBlockPacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for SetBlockPacket {
     fn packet_id(&self) -> u8 {
@@ -258,7 +245,6 @@ pub struct SpawnPlayerPacket {
     yaw: u8,
     pitch: u8,
 }
-
 impl SpawnPlayerPacket {
     pub fn new(
         player_id: i8,
@@ -281,7 +267,6 @@ impl SpawnPlayerPacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for SpawnPlayerPacket {
     fn packet_id(&self) -> u8 {
@@ -320,7 +305,6 @@ pub struct SetPositionAndOrientationPacket {
     yaw: u8,
     pitch: u8,
 }
-
 impl SetPositionAndOrientationPacket {
     pub fn new(player_id: i8, x: i16, y: i16, z: i16, yaw: u8, pitch: u8) -> Self {
         Self {
@@ -334,7 +318,6 @@ impl SetPositionAndOrientationPacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for SetPositionAndOrientationPacket {
     fn packet_id(&self) -> u8 {
@@ -372,7 +355,6 @@ pub struct PositionAndOrientationUpdatePacket {
     yaw: u8,
     pitch: u8,
 }
-
 impl PositionAndOrientationUpdatePacket {
     pub fn new(player_id: i8, delta_x: i8, delta_y: i8, delta_z: i8, yaw: u8, pitch: u8) -> Self {
         Self {
@@ -386,7 +368,6 @@ impl PositionAndOrientationUpdatePacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for PositionAndOrientationUpdatePacket {
     fn packet_id(&self) -> u8 {
@@ -422,7 +403,6 @@ pub struct PositionUpdatePacket {
     delta_y: i8,
     delta_z: i8,
 }
-
 impl PositionUpdatePacket {
     pub fn new(player_id: i8, delta_x: i8, delta_y: i8, delta_z: i8) -> Self {
         Self {
@@ -434,7 +414,6 @@ impl PositionUpdatePacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for PositionUpdatePacket {
     fn packet_id(&self) -> u8 {
@@ -467,7 +446,6 @@ pub struct OrientationUpdatePacket {
     yaw: u8,
     pitch: u8,
 }
-
 impl OrientationUpdatePacket {
     pub fn new(player_id: i8, yaw: u8, pitch: u8) -> Self {
         Self {
@@ -478,7 +456,6 @@ impl OrientationUpdatePacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for OrientationUpdatePacket {
     fn packet_id(&self) -> u8 {
@@ -508,7 +485,6 @@ pub struct DespawnPlayerPacket {
     data: Vec<u8>,
     player_id: i8,
 }
-
 impl DespawnPlayerPacket {
     pub fn new(player_id: i8) -> Self {
         Self {
@@ -517,7 +493,6 @@ impl DespawnPlayerPacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for DespawnPlayerPacket {
     fn packet_id(&self) -> u8 {
@@ -546,7 +521,6 @@ pub struct MessagePacket {
     player_id: i8,
     message: String,
 }
-
 impl MessagePacket {
     pub fn new(player_id: i8, message: String) -> Self {
         Self {
@@ -556,7 +530,6 @@ impl MessagePacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for MessagePacket {
     fn packet_id(&self) -> u8 {
@@ -585,7 +558,6 @@ pub struct DisconnectPlayerPacket {
     data: Vec<u8>,
     reason: String,
 }
-
 impl DisconnectPlayerPacket {
     pub fn new(reason: String) -> Self {
         Self {
@@ -594,7 +566,6 @@ impl DisconnectPlayerPacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for DisconnectPlayerPacket {
     fn packet_id(&self) -> u8 {
@@ -622,7 +593,6 @@ pub struct UpdateUserTypePacket {
     data: Vec<u8>,
     user_type: u8,
 }
-
 impl UpdateUserTypePacket {
     pub fn new(user_type: u8) -> Self {
         Self {
@@ -631,7 +601,6 @@ impl UpdateUserTypePacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for UpdateUserTypePacket {
     fn packet_id(&self) -> u8 {
@@ -654,20 +623,3 @@ impl PacketTrait for UpdateUserTypePacket {
         Ok(())
     }
 }
-
-/*
-fn packet_id(&self) -> u8 {
-    return 0x00;
-}
-fn write(&mut self, writer: &mut PacketWriter) {}
-fn read(&mut self, reader: &mut PacketReader) {}
-async fn resolve(&self, socket: &mut TcpStream) {
-async fn resolve(
-    &self,
-    socket: &mut TcpStream,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    socket.write_all(&self.data).await?;
-
-    Ok(())
-}
-*/
