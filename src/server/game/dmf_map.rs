@@ -6,7 +6,7 @@ use std::{
 const HEADER_INDENTIFIER: &str = "DANDELION MAP FORMAT";
 const HEADER_VERSION: u8 = 0x00;
 
-pub struct DmfWorld {
+pub struct DmfMap {
     pub x_spawn: i16,
     pub y_spawn: i16,
     pub z_spawn: i16,
@@ -18,7 +18,7 @@ pub struct DmfWorld {
     pub blocks: Vec<u8>,
 }
 
-impl DmfWorld {
+impl DmfMap {
     pub fn new(
         x_spawn: i16,
         y_spawn: i16,

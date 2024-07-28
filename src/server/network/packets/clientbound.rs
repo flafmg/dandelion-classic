@@ -1,19 +1,10 @@
-use std::io::Write;
-use std::time::Duration;
-
-use async_trait::async_trait;
-use flate2::write::GzEncoder;
-use flate2::Compression;
-use tokio::net::TcpStream;
-use tokio::{io::AsyncWriteExt, time::sleep};
-
-use crate::server::{
-    network::{
-        packet::PacketTrait,
-        packet_stream::{packet_reader::PacketReader, packet_writer::PacketWriter},
-    },
-    world::dmf_world::DmfWorld,
+use crate::server::network::{
+    packet::PacketTrait,
+    packet_stream::{packet_reader::PacketReader, packet_writer::PacketWriter},
 };
+use async_trait::async_trait;
+use tokio::io::AsyncWriteExt;
+use tokio::net::TcpStream;
 
 // server identification packet
 
@@ -56,10 +47,6 @@ impl PacketTrait for ServerIdentificationPacket {
         socket: &mut TcpStream,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
-        let mut resolve_packet_response = LevelInitializePacket::new();
-        let mut packet_writer = PacketWriter::new();
-        resolve_packet_response.write(&mut packet_writer);
-        resolve_packet_response.resolve(socket).await?;
 
         Ok(())
     }
@@ -92,48 +79,6 @@ impl PacketTrait for LevelInitializePacket {
         socket: &mut TcpStream,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
-
-        let mut world = DmfWorld::load_file("maps/default.dmf").unwrap();
-        let block_data = world.blocks;
-
-        let total_length = block_data.len();
-        let mut prefixed_data = Vec::with_capacity(4 + total_length);
-        prefixed_data.extend_from_slice(&(total_length as u32).to_be_bytes());
-        prefixed_data.extend_from_slice(&block_data);
-
-        //im dumb i needed to compress this shit
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(&prefixed_data).unwrap();
-        let compressed_data = encoder.finish().unwrap();
-        let chunk_size = 1024;
-
-        for (i, chunk) in compressed_data.chunks(chunk_size).enumerate() {
-            let chunk_length = chunk.len() as i16;
-            let percent_complete = ((i * chunk_size + chunk_length as usize) as f32
-                / compressed_data.len() as f32
-                * 100.0) as u8;
-
-            let mut chunk_data = chunk.to_vec();
-            if chunk_data.len() < chunk_size {
-                chunk_data.resize(chunk_size, 0x00);
-            }
-
-            let mut packet = LevelDataChunkPacket::new(chunk_length, chunk_data, percent_complete);
-            let mut packet_writer = PacketWriter::new();
-            packet.write(&mut packet_writer);
-
-            if let Err(e) = packet.resolve(socket).await {
-                println!("Error sending chunk {}: {}", i, e);
-                break;
-            }
-
-            sleep(Duration::from_secs(1)).await;
-        }
-
-        let mut level_finalize = LevelFinalizePacket::new(world.x_size, world.y_size, world.z_size);
-        let mut packet_writer = PacketWriter::new();
-        level_finalize.write(&mut packet_writer);
-        level_finalize.resolve(socket).await?;
 
         Ok(())
     }
@@ -221,6 +166,491 @@ impl PacketTrait for LevelFinalizePacket {
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
 
+        Ok(())
+    }
+}
+
+pub struct PingPacket {
+    data: Vec<u8>,
+}
+
+impl PingPacket {
+    pub fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for PingPacket {
+    fn packet_id(&self) -> u8 {
+        0x01
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct SetBlockPacket {
+    data: Vec<u8>,
+    x: i16,
+    y: i16,
+    z: i16,
+    block_type: u8,
+}
+
+impl SetBlockPacket {
+    pub fn new(x: i16, y: i16, z: i16, block_type: u8) -> Self {
+        Self {
+            data: Vec::new(),
+            x,
+            y,
+            z,
+            block_type,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for SetBlockPacket {
+    fn packet_id(&self) -> u8 {
+        0x06
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_short(self.x);
+        writer.write_short(self.y);
+        writer.write_short(self.z);
+        writer.write_byte(self.block_type);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct SpawnPlayerPacket {
+    data: Vec<u8>,
+    player_id: i8,
+    player_name: String,
+    x: i16,
+    y: i16,
+    z: i16,
+    yaw: u8,
+    pitch: u8,
+}
+
+impl SpawnPlayerPacket {
+    pub fn new(
+        player_id: i8,
+        player_name: String,
+        x: i16,
+        y: i16,
+        z: i16,
+        yaw: u8,
+        pitch: u8,
+    ) -> Self {
+        Self {
+            data: Vec::new(),
+            player_id,
+            player_name,
+            x,
+            y,
+            z,
+            yaw,
+            pitch,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for SpawnPlayerPacket {
+    fn packet_id(&self) -> u8 {
+        0x07
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_sbyte(self.player_id);
+        writer.write_string(&self.player_name);
+        writer.write_short(self.x);
+        writer.write_short(self.y);
+        writer.write_short(self.z);
+        writer.write_byte(self.yaw);
+        writer.write_byte(self.pitch);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct SetPositionAndOrientationPacket {
+    data: Vec<u8>,
+    player_id: i8,
+    x: i16,
+    y: i16,
+    z: i16,
+    yaw: u8,
+    pitch: u8,
+}
+
+impl SetPositionAndOrientationPacket {
+    pub fn new(player_id: i8, x: i16, y: i16, z: i16, yaw: u8, pitch: u8) -> Self {
+        Self {
+            data: Vec::new(),
+            player_id,
+            x,
+            y,
+            z,
+            yaw,
+            pitch,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for SetPositionAndOrientationPacket {
+    fn packet_id(&self) -> u8 {
+        0x08
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_sbyte(self.player_id);
+        writer.write_short(self.x);
+        writer.write_short(self.y);
+        writer.write_short(self.z);
+        writer.write_byte(self.yaw);
+        writer.write_byte(self.pitch);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct PositionAndOrientationUpdatePacket {
+    data: Vec<u8>,
+    player_id: i8,
+    delta_x: i8,
+    delta_y: i8,
+    delta_z: i8,
+    yaw: u8,
+    pitch: u8,
+}
+
+impl PositionAndOrientationUpdatePacket {
+    pub fn new(player_id: i8, delta_x: i8, delta_y: i8, delta_z: i8, yaw: u8, pitch: u8) -> Self {
+        Self {
+            data: Vec::new(),
+            player_id,
+            delta_x,
+            delta_y,
+            delta_z,
+            yaw,
+            pitch,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for PositionAndOrientationUpdatePacket {
+    fn packet_id(&self) -> u8 {
+        0x09
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_sbyte(self.player_id);
+        writer.write_byte(self.delta_x as u8);
+        writer.write_byte(self.delta_y as u8);
+        writer.write_byte(self.delta_z as u8);
+        writer.write_byte(self.yaw);
+        writer.write_byte(self.pitch);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct PositionUpdatePacket {
+    data: Vec<u8>,
+    player_id: i8,
+    delta_x: i8,
+    delta_y: i8,
+    delta_z: i8,
+}
+
+impl PositionUpdatePacket {
+    pub fn new(player_id: i8, delta_x: i8, delta_y: i8, delta_z: i8) -> Self {
+        Self {
+            data: Vec::new(),
+            player_id,
+            delta_x,
+            delta_y,
+            delta_z,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for PositionUpdatePacket {
+    fn packet_id(&self) -> u8 {
+        0x0a
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_sbyte(self.player_id);
+        writer.write_byte(self.delta_x as u8);
+        writer.write_byte(self.delta_y as u8);
+        writer.write_byte(self.delta_z as u8);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct OrientationUpdatePacket {
+    data: Vec<u8>,
+    player_id: i8,
+    yaw: u8,
+    pitch: u8,
+}
+
+impl OrientationUpdatePacket {
+    pub fn new(player_id: i8, yaw: u8, pitch: u8) -> Self {
+        Self {
+            data: Vec::new(),
+            player_id,
+            yaw,
+            pitch,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for OrientationUpdatePacket {
+    fn packet_id(&self) -> u8 {
+        0x0b
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_sbyte(self.player_id);
+        writer.write_byte(self.yaw);
+        writer.write_byte(self.pitch);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct DespawnPlayerPacket {
+    data: Vec<u8>,
+    player_id: i8,
+}
+
+impl DespawnPlayerPacket {
+    pub fn new(player_id: i8) -> Self {
+        Self {
+            data: Vec::new(),
+            player_id,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for DespawnPlayerPacket {
+    fn packet_id(&self) -> u8 {
+        0x0c
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_sbyte(self.player_id);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct MessagePacket {
+    data: Vec<u8>,
+    player_id: i8,
+    message: String,
+}
+
+impl MessagePacket {
+    pub fn new(player_id: i8, message: String) -> Self {
+        Self {
+            data: Vec::new(),
+            player_id,
+            message,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for MessagePacket {
+    fn packet_id(&self) -> u8 {
+        0x0d
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_sbyte(self.player_id);
+        writer.write_string(&self.message);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct DisconnectPlayerPacket {
+    data: Vec<u8>,
+    reason: String,
+}
+
+impl DisconnectPlayerPacket {
+    pub fn new(reason: String) -> Self {
+        Self {
+            data: Vec::new(),
+            reason,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for DisconnectPlayerPacket {
+    fn packet_id(&self) -> u8 {
+        0x0e
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_string(&self.reason);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
+        Ok(())
+    }
+}
+
+pub struct UpdateUserTypePacket {
+    data: Vec<u8>,
+    user_type: u8,
+}
+
+impl UpdateUserTypePacket {
+    pub fn new(user_type: u8) -> Self {
+        Self {
+            data: Vec::new(),
+            user_type,
+        }
+    }
+}
+
+#[async_trait]
+impl PacketTrait for UpdateUserTypePacket {
+    fn packet_id(&self) -> u8 {
+        0x0f
+    }
+
+    fn write(&mut self, writer: &mut PacketWriter) {
+        writer.write_byte(self.packet_id());
+        writer.write_byte(self.user_type);
+        self.data = writer.to_bytes().clone();
+    }
+
+    fn read(&mut self, _reader: &mut PacketReader) {}
+
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        socket.write_all(&self.data).await?;
         Ok(())
     }
 }
