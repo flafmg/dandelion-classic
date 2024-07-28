@@ -8,5 +8,8 @@ pub trait PacketTrait {
     fn packet_id(&self) -> u8;
     fn write(&mut self, writer: &mut PacketWriter);
     fn read(&mut self, reader: &mut PacketReader);
-    async fn resolve(&self, socket: &mut TcpStream);
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }

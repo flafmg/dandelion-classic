@@ -39,11 +39,16 @@ impl PacketTrait for PlayerIndentificationPacket {
             self.username, self.protocol_version
         )
     }
-    async fn resolve(&self, socket: &mut TcpStream) {
+    async fn resolve(
+        &self,
+        socket: &mut TcpStream,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut resolve_packet_response = ServerIdentificationPacket::new();
         let mut paclet_writer = PacketWriter::new();
         resolve_packet_response.write(&mut paclet_writer);
-        resolve_packet_response.resolve(socket).await;
+        resolve_packet_response.resolve(socket).await?;
+
+        Ok(())
     }
 }
 

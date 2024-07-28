@@ -27,7 +27,7 @@ impl PacketWriter {
 
     pub fn write_byte_array(&mut self, value: &[u8], size: usize) {
         let mut bytes = value.to_vec();
-        bytes.resize(size, 0);
+        bytes.resize(size, 0x00);
         self.data.extend(&bytes);
     }
 
