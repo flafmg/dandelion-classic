@@ -1,10 +1,13 @@
 [package]
 name = "dandelion"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.39", features = ["full"] }
 reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = { version = "0.9" }
 async-trait = "0.1"
 flate2 = "1.0.30"
+rand = "0.8"

@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
-use tokio::net::TcpStream;
+use tokio::{io::WriteHalf, net::TcpStream, sync::Mutex};
 
 use super::packet_stream::{packet_reader::PacketReader, packet_writer::PacketWriter};
 
@@ -10,6 +12,6 @@ pub trait PacketTrait {
     fn read(&mut self, reader: &mut PacketReader);
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }

@@ -3,14 +3,14 @@ use crate::server::network::{
     packet_stream::{packet_reader::PacketReader, packet_writer::PacketWriter},
 };
 use async_trait::async_trait;
-use tokio::net::TcpStream;
+use tokio::{io::WriteHalf, net::TcpStream};
 
 use super::clientbound::ServerIdentificationPacket;
 
 pub struct PlayerIndentificationPacket {
-    protocol_version: u8,
-    username: String,
-    verification_key: String,
+    pub protocol_version: u8,
+    pub username: String,
+    pub verification_key: String,
 }
 impl PlayerIndentificationPacket {
     pub fn new() -> Self {
@@ -33,15 +33,10 @@ impl PacketTrait for PlayerIndentificationPacket {
         self.protocol_version = reader.read_byte();
         self.username = reader.read_string();
         self.verification_key = reader.read_string();
-
-        println!(
-            " username: {}\n protocol: {}",
-            self.username, self.protocol_version
-        )
     }
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut resolve_packet_response = ServerIdentificationPacket::new();
         let mut paclet_writer = PacketWriter::new();
@@ -86,16 +81,11 @@ impl PacketTrait for SetBlockPacket {
         self.z = reader.read_short();
         self.mode = reader.read_byte();
         self.block_type = reader.read_byte();
-
-        println!(
-            "SetBlockPacket: x={}, y={}, z={}, mode={}, block_type={}",
-            self.x, self.y, self.z, self.mode, self.block_type
-        );
     }
 
     async fn resolve(
         &self,
-        _socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
     }
@@ -138,16 +128,11 @@ impl PacketTrait for PositionAndOrientationPacket {
         self.z = reader.read_short();
         self.yaw = reader.read_byte();
         self.pitch = reader.read_byte();
-
-        println!(
-            "PositionAndOrientationPacket: player_id={}, x={}, y={}, z={}, yaw={}, pitch={}",
-            self.player_id, self.x, self.y, self.z, self.yaw, self.pitch
-        );
     }
 
     async fn resolve(
         &self,
-        _socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
     }
@@ -178,16 +163,11 @@ impl PacketTrait for MessagePacket {
     fn read(&mut self, reader: &mut PacketReader) {
         self.player_id = reader.read_sbyte();
         self.message = reader.read_string();
-
-        println!(
-            "MessagePacket: player_id={}, message={}",
-            self.player_id, self.message
-        );
     }
 
     async fn resolve(
         &self,
-        _socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Ok(())
     }

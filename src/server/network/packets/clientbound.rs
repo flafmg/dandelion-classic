@@ -3,10 +3,8 @@ use crate::server::network::{
     packet_stream::{packet_reader::PacketReader, packet_writer::PacketWriter},
 };
 use async_trait::async_trait;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWriteExt, WriteHalf};
 use tokio::net::TcpStream;
-
-// server identification packet
 
 pub struct ServerIdentificationPacket {
     data: Vec<u8>,
@@ -26,7 +24,6 @@ impl ServerIdentificationPacket {
         }
     }
 }
-
 #[async_trait]
 impl PacketTrait for ServerIdentificationPacket {
     fn packet_id(&self) -> u8 {
@@ -44,15 +41,13 @@ impl PacketTrait for ServerIdentificationPacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
 
         Ok(())
     }
 }
-
-// level initialize packet
 
 pub struct LevelInitializePacket {
     data: Vec<u8>,
@@ -75,7 +70,7 @@ impl PacketTrait for LevelInitializePacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
 
@@ -115,7 +110,7 @@ impl PacketTrait for LevelDataChunkPacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -153,7 +148,7 @@ impl PacketTrait for LevelFinalizePacket {
     fn read(&mut self, _reader: &mut PacketReader) {}
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
 
@@ -184,9 +179,10 @@ impl PacketTrait for PingPacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
+
         Ok(())
     }
 }
@@ -228,7 +224,7 @@ impl PacketTrait for SetBlockPacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -289,7 +285,7 @@ impl PacketTrait for SpawnPlayerPacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -339,7 +335,7 @@ impl PacketTrait for SetPositionAndOrientationPacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -389,7 +385,7 @@ impl PacketTrait for PositionAndOrientationUpdatePacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -433,7 +429,7 @@ impl PacketTrait for PositionUpdatePacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -474,7 +470,7 @@ impl PacketTrait for OrientationUpdatePacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -509,7 +505,7 @@ impl PacketTrait for DespawnPlayerPacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -547,7 +543,7 @@ impl PacketTrait for MessagePacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -582,7 +578,7 @@ impl PacketTrait for DisconnectPlayerPacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())
@@ -617,7 +613,7 @@ impl PacketTrait for UpdateUserTypePacket {
 
     async fn resolve(
         &self,
-        socket: &mut TcpStream,
+        socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
         Ok(())

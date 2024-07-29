@@ -1,0 +1,9 @@
+addr: 0.0.0.0
+port: 25565
+heartbeat_url: https://www.classicube.net/server/heartbeat
+name: Dandelion dev server
+motd: wtf are you doing here, get out
+public: true
+do_user_auth: true
+max_players: 64
+default_map: default

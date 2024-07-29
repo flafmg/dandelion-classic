@@ -1,49 +1,90 @@
 use crate::server::network::{heartbeat::start_heartbeat_loop, packet_resolver::PacketResolver};
-use std::io;
+use rand::Rng;
+use std::collections::HashMap;
+use std::fs::write;
+use std::iter::repeat_with;
 use std::sync::Arc;
 use tokio::fs;
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
-use tokio::{io::AsyncReadExt, net::TcpListener, net::TcpStream};
 
+use super::config::Config;
 use super::game::dmf_map::DmfMap;
+use super::game::player::Player;
 
-pub async fn start_server(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let packet_resolver = Arc::new(Mutex::new(PacketResolver::new()));
+pub struct Server {
+    pub connected_players: Arc<Mutex<HashMap<i8, Player>>>,
 
-    create_default_test_world().await;
+    pub loaded_maps: Arc<Mutex<HashMap<String, DmfMap>>>,
+    pub config: Arc<Config>,
 
-    tokio::spawn(async move {
-        start_heartbeat_loop().await;
-    });
+    pub salt: String,
+}
 
-    let listener = TcpListener::bind(addr).await?;
-    println!("Starting server on {}", addr);
+impl Server {
+    pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        let config = Arc::new(Config::load("server-config.yml")?);
+        let salt = generate_salt(16);
+        let server = Server {
+            connected_players: Arc::new(Mutex::new(HashMap::new())),
+            loaded_maps: Arc::new(Mutex::new(HashMap::new())),
+            config,
+            salt,
+        };
 
-    loop {
-        let (socket, addr) = listener.accept().await?;
-        println!("Client connected: {}", addr);
+        return Ok(server);
+    }
 
-        let resolver_clone = Arc::clone(&packet_resolver);
-        tokio::spawn(handle_client(socket, resolver_clone));
+    pub async fn start(self: Arc<Self>) -> Result<(), Box<dyn std::error::Error>> {
+        let resolver = Arc::new(PacketResolver::new(Arc::clone(&self)));
+        create_default_test_world().await?;
+
+        tokio::spawn({
+            let server = Arc::clone(&self);
+            async move {
+                start_heartbeat_loop(server).await;
+            }
+        });
+
+        let resolver_clone = Arc::clone(&resolver);
+        tokio::spawn(async move {
+            resolver_clone.ping_players_loop().await;
+        });
+
+        let address = format!("{}:{}", self.config.addr, self.config.port);
+        let listener = TcpListener::bind(&address).await?;
+        println!("Starting server on {}", &address);
+
+        loop {
+            let (socket, addr) = listener.accept().await?;
+            println!("Client connected: {}", addr);
+
+            let resolver_clone = Arc::clone(&resolver);
+            tokio::spawn(handle_client(socket, resolver_clone));
+        }
     }
 }
 
 async fn handle_client(
-    mut socket: TcpStream,
-    resolver: Arc<Mutex<PacketResolver>>,
+    socket: TcpStream,
+    resolver: Arc<PacketResolver>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let (mut reader, mut writer) = tokio::io::split(socket);
+    let mut reader = Arc::new(Mutex::new(reader));
+    let mut writer = Arc::new(Mutex::new(writer));
     let mut buf = [0; 1024];
 
     loop {
-        let n = match socket.read(&mut buf).await {
+        let n = match reader.lock().await.read(&mut buf).await {
             Ok(0) => {
                 println!("Connection closed");
-                return Ok(());
+                break;
             }
             Ok(n) => n,
             Err(e) => {
                 println!("Error reading incoming data: {}", e);
-                return Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>);
+                break;
             }
         };
 
@@ -61,12 +102,15 @@ async fn handle_client(
             Err(_) => println!(" STR: ?"),
         }
 
-        let mut resolver = resolver.lock().await;
-        resolver.handle_packet(&buf[..n], socket).await;
-
-        return Ok(());
+        resolver.handle_packet(&buf[..n], Arc::clone(&writer)).await;
     }
+
+    if let Err(e) = writer.lock().await.shutdown().await {
+        println!("Erro closing writer: {}", e);
+    }
+    Ok(())
 }
+
 async fn create_default_test_world() -> io::Result<()> {
     let mut world = DmfMap::new(128, 4, 128, 256, 64, 256);
 
@@ -81,4 +125,13 @@ async fn create_default_test_world() -> io::Result<()> {
 
     fs::create_dir_all("maps").await?;
     world.save_file("maps/default.dmf")
+}
+fn generate_salt(length: usize) -> String {
+    const BASE62: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    let mut rng = rand::thread_rng();
+
+    repeat_with(|| BASE62[rng.gen_range(0..BASE62.len())] as char)
+        .take(length)
+        .collect()
 }
