@@ -6,7 +6,8 @@ mod server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server = Arc::new(Server::new().await?); // i fucking hate arcs
+    let server = Arc::new(Server::new().await?);
     server.start().await?;
+
     Ok(())
 }

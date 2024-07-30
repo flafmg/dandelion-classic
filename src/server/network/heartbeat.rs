@@ -9,8 +9,6 @@ const HEARTBEAT_INTERVAL: u64 = 45;
 const SERVER_SOFTWARE: &str = "&eDANDELION &70.0.1";
 
 pub async fn start_heartbeat_loop(server: Arc<Server>) {
-    println!("starting hearbeat loop");
-
     loop {
         let server_clone = server.clone();
         if let Err(er) = send_heartbeats(server_clone).await {
@@ -32,10 +30,7 @@ async fn send_heartbeats(server: Arc<Server>) -> Result<(), reqwest::Error> {
             ("public", config.public.to_string()),
             ("version", "7".to_string()),
             ("salt", server.salt.clone()),
-            (
-                "users",
-                server.connected_players.lock().await.len().to_string(),
-            ),
+            ("users", server.connected_players.len().to_string()),
             ("software", SERVER_SOFTWARE.to_string()),
             ("web", "false".to_string()),
         ])
@@ -45,8 +40,8 @@ async fn send_heartbeats(server: Arc<Server>) -> Result<(), reqwest::Error> {
     if response.status().is_success() {
         let response_body = response.text().await?;
     } else {
-        println!("Hearbeat ERROR: {}", response.status());
+        println!("Heartbeat ERROR: {}", response.status());
     }
 
-    return Ok(());
+    Ok(())
 }

@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct PacketReader<'a> {
     data: &'a [u8],
     index: usize,

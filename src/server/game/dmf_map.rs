@@ -6,6 +6,7 @@ use std::{
 const HEADER_INDENTIFIER: &str = "DANDELION MAP FORMAT";
 const HEADER_VERSION: u8 = 0x00;
 
+#[derive(Debug, Clone)]
 pub struct DmfMap {
     pub x_spawn: i16,
     pub y_spawn: i16,
@@ -40,7 +41,20 @@ impl DmfMap {
             blocks: vec![0x00; total_blocks],
         };
     }
-
+    pub fn get_block(&self, x: i16, y: i16, z: i16) -> u8 {
+        if x < self.x_size && y < self.y_size && z < self.z_size {
+            let index = (y as usize * self.z_size as usize * self.x_size as usize)
+                + (z as usize * self.x_size as usize)
+                + x as usize;
+            self.blocks[index]
+        } else {
+            println!(
+                "Error: attempted to get block outside world ({}, {}, {})",
+                x, y, z
+            );
+            0x00
+        }
+    }
     pub fn set_block(&mut self, x: i16, y: i16, z: i16, block: u8) {
         if x < self.x_size && y < self.y_size && z < self.z_size {
             let index = (y as usize * self.z_size as usize * self.x_size as usize)
@@ -54,7 +68,11 @@ impl DmfMap {
             );
         }
     }
-
+    pub fn set_spawn_point(&mut self, x: i16, y: i16, z: i16) {
+        self.x_spawn = x;
+        self.y_spawn = y;
+        self.z_spawn = z;
+    }
     pub fn save_file(&self, path: &str) -> io::Result<()> {
         let mut file = File::create(path)?;
         print!("saving file to {}", path);

@@ -14,12 +14,12 @@ pub struct ServerIdentificationPacket {
     user_type: u8,
 }
 impl ServerIdentificationPacket {
-    pub fn new() -> Self {
+    pub fn new(server_name: String, server_motd: String) -> Self {
         Self {
             data: Vec::new(),
             protocol_version: 0x07,
-            server_name: "dandelion".to_string(),
-            server_motd: "hello mom!".to_string(),
+            server_name,
+            server_motd,
             user_type: 0x64,
         }
     }
@@ -44,7 +44,6 @@ impl PacketTrait for ServerIdentificationPacket {
         socket: &mut WriteHalf<TcpStream>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         socket.write_all(&self.data).await?;
-
         Ok(())
     }
 }
@@ -187,14 +186,14 @@ impl PacketTrait for PingPacket {
     }
 }
 
-pub struct SetBlockPacket {
+pub struct UpdateSetBlockPacket {
     data: Vec<u8>,
     x: i16,
     y: i16,
     z: i16,
     block_type: u8,
 }
-impl SetBlockPacket {
+impl UpdateSetBlockPacket {
     pub fn new(x: i16, y: i16, z: i16, block_type: u8) -> Self {
         Self {
             data: Vec::new(),
@@ -206,7 +205,7 @@ impl SetBlockPacket {
     }
 }
 #[async_trait]
-impl PacketTrait for SetBlockPacket {
+impl PacketTrait for UpdateSetBlockPacket {
     fn packet_id(&self) -> u8 {
         0x06
     }
@@ -342,141 +341,6 @@ impl PacketTrait for SetPositionAndOrientationPacket {
     }
 }
 
-pub struct PositionAndOrientationUpdatePacket {
-    data: Vec<u8>,
-    player_id: i8,
-    delta_x: i8,
-    delta_y: i8,
-    delta_z: i8,
-    yaw: u8,
-    pitch: u8,
-}
-impl PositionAndOrientationUpdatePacket {
-    pub fn new(player_id: i8, delta_x: i8, delta_y: i8, delta_z: i8, yaw: u8, pitch: u8) -> Self {
-        Self {
-            data: Vec::new(),
-            player_id,
-            delta_x,
-            delta_y,
-            delta_z,
-            yaw,
-            pitch,
-        }
-    }
-}
-#[async_trait]
-impl PacketTrait for PositionAndOrientationUpdatePacket {
-    fn packet_id(&self) -> u8 {
-        0x09
-    }
-
-    fn write(&mut self, writer: &mut PacketWriter) {
-        writer.write_byte(self.packet_id());
-        writer.write_sbyte(self.player_id);
-        writer.write_byte(self.delta_x as u8);
-        writer.write_byte(self.delta_y as u8);
-        writer.write_byte(self.delta_z as u8);
-        writer.write_byte(self.yaw);
-        writer.write_byte(self.pitch);
-        self.data = writer.to_bytes().clone();
-    }
-
-    fn read(&mut self, _reader: &mut PacketReader) {}
-
-    async fn resolve(
-        &self,
-        socket: &mut WriteHalf<TcpStream>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        socket.write_all(&self.data).await?;
-        Ok(())
-    }
-}
-
-pub struct PositionUpdatePacket {
-    data: Vec<u8>,
-    player_id: i8,
-    delta_x: i8,
-    delta_y: i8,
-    delta_z: i8,
-}
-impl PositionUpdatePacket {
-    pub fn new(player_id: i8, delta_x: i8, delta_y: i8, delta_z: i8) -> Self {
-        Self {
-            data: Vec::new(),
-            player_id,
-            delta_x,
-            delta_y,
-            delta_z,
-        }
-    }
-}
-#[async_trait]
-impl PacketTrait for PositionUpdatePacket {
-    fn packet_id(&self) -> u8 {
-        0x0a
-    }
-
-    fn write(&mut self, writer: &mut PacketWriter) {
-        writer.write_byte(self.packet_id());
-        writer.write_sbyte(self.player_id);
-        writer.write_byte(self.delta_x as u8);
-        writer.write_byte(self.delta_y as u8);
-        writer.write_byte(self.delta_z as u8);
-        self.data = writer.to_bytes().clone();
-    }
-
-    fn read(&mut self, _reader: &mut PacketReader) {}
-
-    async fn resolve(
-        &self,
-        socket: &mut WriteHalf<TcpStream>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        socket.write_all(&self.data).await?;
-        Ok(())
-    }
-}
-
-pub struct OrientationUpdatePacket {
-    data: Vec<u8>,
-    player_id: i8,
-    yaw: u8,
-    pitch: u8,
-}
-impl OrientationUpdatePacket {
-    pub fn new(player_id: i8, yaw: u8, pitch: u8) -> Self {
-        Self {
-            data: Vec::new(),
-            player_id,
-            yaw,
-            pitch,
-        }
-    }
-}
-#[async_trait]
-impl PacketTrait for OrientationUpdatePacket {
-    fn packet_id(&self) -> u8 {
-        0x0b
-    }
-
-    fn write(&mut self, writer: &mut PacketWriter) {
-        writer.write_byte(self.packet_id());
-        writer.write_sbyte(self.player_id);
-        writer.write_byte(self.yaw);
-        writer.write_byte(self.pitch);
-        self.data = writer.to_bytes().clone();
-    }
-
-    fn read(&mut self, _reader: &mut PacketReader) {}
-
-    async fn resolve(
-        &self,
-        socket: &mut WriteHalf<TcpStream>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        socket.write_all(&self.data).await?;
-        Ok(())
-    }
-}
-
 pub struct DespawnPlayerPacket {
     data: Vec<u8>,
     player_id: i8,
@@ -512,12 +376,12 @@ impl PacketTrait for DespawnPlayerPacket {
     }
 }
 
-pub struct MessagePacket {
+pub struct SendMessagePacket {
     data: Vec<u8>,
     player_id: i8,
     message: String,
 }
-impl MessagePacket {
+impl SendMessagePacket {
     pub fn new(player_id: i8, message: String) -> Self {
         Self {
             data: Vec::new(),
@@ -527,7 +391,7 @@ impl MessagePacket {
     }
 }
 #[async_trait]
-impl PacketTrait for MessagePacket {
+impl PacketTrait for SendMessagePacket {
     fn packet_id(&self) -> u8 {
         0x0d
     }

@@ -34,4 +34,7 @@ impl PacketWriter {
     pub fn to_bytes(&self) -> &Vec<u8> {
         return &self.data;
     }
+    pub fn into_inner(self) -> Vec<u8> {
+        self.data
+    }
 }
