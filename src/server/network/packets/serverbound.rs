@@ -36,6 +36,7 @@ impl PacketTrait for PlayerIndentificationPacket {
     fn write(&mut self, writer: &mut PacketWriter) {}
 
     fn read(&mut self, reader: &mut PacketReader) {
+        reader.read_byte();
         self.protocol_version = reader.read_byte();
         self.username = reader.read_string();
         self.verification_key = reader.read_string();

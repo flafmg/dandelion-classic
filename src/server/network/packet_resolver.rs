@@ -101,6 +101,8 @@ impl PacketResolver {
         self.load_default_map_and_send_to_player(player.clone())
             .await;
 
+        println!("{} connected", player.get_name());
+
         let join_message = format!("welcome {}!", player.get_name());
         for player in self.server.connected_players.iter() {
             player.send_message(&join_message).await;
